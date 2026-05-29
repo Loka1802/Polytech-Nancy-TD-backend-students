@@ -8,6 +8,9 @@ import org.slf4j.LoggerFactory;
 import java.io.IOException;
 import java.io.OutputStream;
 import java.net.InetSocketAddress;
+import java.sql.*;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.Optional;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
@@ -38,34 +41,94 @@ public class Application {
         String method = exchange.getRequestMethod();
         String path = exchange.getRequestURI().getPath();
 
-        //region Manage POST /tasks
-        if ("POST".equals(method) && "/tasks".equals(path)) {
-            Task input = JsonUtils.deserialize(new String(exchange.getRequestBody().readAllBytes(), UTF_8), Task.class);
-            Task createdTask = dao.save(input);
+        try {
+            //region Manage POST /tasks
+            if ("POST".equals(method) && "/tasks".equals(path)) {
+                Task input = JsonUtils.deserialize(new String(exchange.getRequestBody().readAllBytes(), UTF_8), Task.class);
+                Task createdTask = dao.save(input);
 
-            exchange.getResponseHeaders().add("Location", "/tasks/" + createdTask.id());
-            sendResponse(exchange, 201, JsonUtils.serialize(createdTask));
-            return;
-        }
-        //endregion
-
-        //region Manage GET /tasks/{id}
-        Matcher m = ID_PATH.matcher(path);
-        if ("GET".equals(method) && m.matches()) {
-            int id = Integer.parseInt(m.group(1));
-            Optional<Task> task = dao.findById(id);
-
-            if (task.isPresent()) {
-                sendResponse(exchange, 200, JsonUtils.serialize(task.get()));
-            } else {
-                sendResponse(exchange, 404, null);
+                exchange.getResponseHeaders().add("Location", "/tasks/" + createdTask.id());
+                sendResponse(exchange, 201, JsonUtils.serialize(createdTask));
+                return;
             }
-            return;
-        }
-        //endregion
+            //endregion
+    /*
+            //region Manage GET /tasks
+            if ("GET".equals(method) && "/tasks".equals(path)) {
+                String query = exchange.getRequestURI().getQuery();
+                List<Task> tasks;
+                String[] parts = query.split("=");
+                boolean todoOnly = Boolean.parseBoolean(parts[1]);
 
-        // Otherwise → 404
-        sendResponse(exchange, 404, null);
+                if (todoOnly) {
+                    tasks = dao.findAll()
+                            .stream()
+                            .filter(task -> !task.done())
+                            .toList();
+                } else {
+                    tasks = dao.findAll();
+                }
+                if (tasks.isEmpty()) {
+                    sendResponse(exchange, 204, null);
+                } else {
+                    sendResponse(exchange, 200, JsonUtils.serialize(tasks));
+                }
+                return;
+            }
+            //endregion
+    */
+            //region Manage GET /tasks/{id}
+            Matcher m = ID_PATH.matcher(path);
+            if ("GET".equals(method) && m.matches()) {
+                int id = Integer.parseInt(m.group(1));
+                Optional<Task> task = dao.findById(id);
+
+                if (task.isPresent()) {
+                    sendResponse(exchange, 200, JsonUtils.serialize(task.get()));
+                } else {
+                    sendResponse(exchange, 404, null);
+                }
+                return;
+            }
+            //endregion
+    /*
+            //region Manage PUT /tasks/{id}
+            if ("PUT".equals(method) && m.matches()) {
+                int id = Integer.parseInt(m.group(1));
+                Optional<Task> task = dao.findById(id);
+
+                if (task.isPresent()) {
+                    Task input = JsonUtils.deserialize(new String(exchange.getRequestBody().readAllBytes(), UTF_8), Task.class);
+                    dao.update(input);
+                    sendResponse(exchange, 204, null);
+                } else {
+                    sendResponse(exchange, 404, null);
+                }
+                return;
+            }
+            //endregion
+
+            //region Manage DELETE /tasks/{id}
+            if ("DELETE".equals(method) && m.matches()) {
+                int id = Integer.parseInt(m.group(1));
+                Optional<Task> task = dao.findById(id);
+
+                if (task.isPresent()) {
+                    dao.delete(id);
+                    sendResponse(exchange, 204, null);
+                } else {
+                    sendResponse(exchange, 404, null);
+                }
+                return;
+            }
+            //endregion
+    */
+            // Otherwise → 404
+            sendResponse(exchange, 404, null);
+
+        } catch (SQLException e) {
+            throw new RuntimeException("failed", e);
+        }
     }
 
     private static void sendResponse(HttpExchange exchange, int status, String json) throws IOException {
