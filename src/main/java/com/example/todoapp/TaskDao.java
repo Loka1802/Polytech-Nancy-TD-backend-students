@@ -40,9 +40,12 @@ public class TaskDao {
     }
 
     public void initializeTable() throws SQLException {
-        save(new Task(1, "Réviser DS de maths", "Séries numériques et probabilités.", false));
-        save(new Task(2, "Valider mon PIVE", "PIVE Club Poker.", true));
-        save(new Task(3, "Choisir mon parcours de 4A", "SIR ou SIA ?", false));
+        if (!findAll().isEmpty()) {
+            return;
+        }
+        save(new Task(null, "Réviser DS de maths", "Séries numériques et probabilités.", false));
+        save(new Task(null, "Valider mon PIVE", "PIVE Club Poker.", true));
+        save(new Task(null, "Choisir mon parcours de 4A", "SIR ou SIA ?", false));
     }
 
     private static Task buildTaskModel(ResultSet rs) throws SQLException {
@@ -102,41 +105,92 @@ public class TaskDao {
     public List<Task> findAll() {
         String sql = "SELECT id, title, description, done FROM Tasks;";
 
-        try (ResultSet rs = ps.executeQuery()) {
-            if (rs.next()) {
-                return Optional.of(buildTaskModel(rs));
+        List<Task> tasks = new ArrayList<>();
+
+        try (Connection conn = DriverManager.getConnection(DB_URL);
+             PreparedStatement ps = conn.prepareStatement(sql);
+             ResultSet rs = ps.executeQuery()) {
+
+            while (rs.next()) {
+                tasks.add(buildTaskModel(rs));
             }
+
         } catch (SQLException e) {
-            throw new RuntimeException("Task retrieval failed", e);
+            e.printStackTrace();
+            throw new RuntimeException(e);
         }
-        return Optional.empty();
-        return new ArrayList<>(storage.values());
+
+        return tasks;
     }
-}
-/*
+
+    /**
+     * Retrieve all {@link Task} models.
+     * @return list of tasks to do only.
+     */
+    public List<Task> findTodoOnly() {
+        String sql = """
+        SELECT id, title, description, done
+        FROM Tasks
+        WHERE done = 0;
+        """;
+
+        List<Task> tasks = new ArrayList<>();
+
+        try (Connection conn = DriverManager.getConnection(DB_URL);
+             PreparedStatement ps = conn.prepareStatement(sql);
+             ResultSet rs = ps.executeQuery()) {
+
+            while (rs.next()) {
+                tasks.add(buildTaskModel(rs));
+            }
+
+        } catch (SQLException e) {
+            throw new RuntimeException(e);
+        }
+
+        return tasks;
+    }
+
     /**
      * Delete {@link Task} model by id.
      * @param id identifier of the {@link Task}.
-     * @return true if task was deleted, false otherwise.
-     *
-    public boolean delete(int id) {
-        return storage.remove(id) != null;
+     */
+    public void delete(int id) {
+        String sql = "DELETE FROM Tasks WHERE id = ?;";
+
+        try (Connection conn = DriverManager.getConnection(DB_URL);
+             PreparedStatement ps = conn.prepareStatement(sql)) {
+
+            ps.setInt(1, id);
+            ps.executeUpdate();
+
+        } catch (SQLException e) {
+            throw new RuntimeException(e);
+        }
     }
 
     /**
      * Update {@link Task} model.
      * @param task updated task.
-     * @return updated {@link Task} model wrapped by Optional.
-     *
-    public Optional<Task> update(Task task) {
+     */
+    public void update(Task task) {
+        String sql = """
+        UPDATE Tasks
+        SET title = ?, description = ?, done = ?
+        WHERE id = ?;
+        """;
 
-        if (!storage.containsKey(task.id())) {
-            return Optional.empty();
+        try (Connection conn = DriverManager.getConnection(DB_URL);
+             PreparedStatement ps = conn.prepareStatement(sql)) {
+
+            ps.setString(1, task.title());
+            ps.setString(2, task.description());
+            ps.setBoolean(3, task.done());
+            ps.setInt(4, task.id());
+            ps.executeUpdate();
+
+        } catch (SQLException e) {
+            throw new RuntimeException(e);
         }
-
-        storage.put(task.id(), task);
-
-        return Optional.of(task);
     }
 }
-*/

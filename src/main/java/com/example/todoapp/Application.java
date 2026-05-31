@@ -9,7 +9,6 @@ import java.io.IOException;
 import java.io.OutputStream;
 import java.net.InetSocketAddress;
 import java.sql.*;
-import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
 import java.util.regex.Matcher;
@@ -52,7 +51,7 @@ public class Application {
                 return;
             }
             //endregion
-    /*
+
             //region Manage GET /tasks
             if ("GET".equals(method) && "/tasks".equals(path)) {
                 String query = exchange.getRequestURI().getQuery();
@@ -61,10 +60,7 @@ public class Application {
                 boolean todoOnly = Boolean.parseBoolean(parts[1]);
 
                 if (todoOnly) {
-                    tasks = dao.findAll()
-                            .stream()
-                            .filter(task -> !task.done())
-                            .toList();
+                    tasks = dao.findTodoOnly();
                 } else {
                     tasks = dao.findAll();
                 }
@@ -76,7 +72,7 @@ public class Application {
                 return;
             }
             //endregion
-    */
+
             //region Manage GET /tasks/{id}
             Matcher m = ID_PATH.matcher(path);
             if ("GET".equals(method) && m.matches()) {
@@ -91,7 +87,7 @@ public class Application {
                 return;
             }
             //endregion
-    /*
+
             //region Manage PUT /tasks/{id}
             if ("PUT".equals(method) && m.matches()) {
                 int id = Integer.parseInt(m.group(1));
@@ -122,7 +118,7 @@ public class Application {
                 return;
             }
             //endregion
-    */
+
             // Otherwise → 404
             sendResponse(exchange, 404, null);
 
